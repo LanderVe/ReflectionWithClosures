@@ -17,20 +17,20 @@ namespace ConsoleApp2
       Action<string> action;
       Stopwatch sw = new Stopwatch();
 
-      ////test1, hard-coded
-      //action = val => d.Text = val;
-      //sw.Restart();
+      //test1, hard-coded
+      action = val => d.Text = val;
+      sw.Restart();
 
-      //for (int i = 0; i < iterations; i++)
-      //{
-      //  action.Invoke("value1");
-      //}
+      for (int i = 0; i < iterations; i++)
+      {
+        action.Invoke("value1");
+      }
 
-      //sw.Stop();
-      //Console.WriteLine(sw.ElapsedMilliseconds);
-      //Console.WriteLine(d.Text);
+      sw.Stop();
+      Console.WriteLine(sw.ElapsedMilliseconds);
+      Console.WriteLine(d.Text);
 
-      ////test2 with Reflection
+      ////test2 with naïve Reflection
       //action = val => o.GetType().GetProperty(propName).SetValue(o, val);
       //sw.Restart();
 
@@ -43,9 +43,9 @@ namespace ConsoleApp2
       //Console.WriteLine(sw.ElapsedMilliseconds);
       //Console.WriteLine(d.Text);
 
-      ////test3 with dynamic
-      //dynamic dy = o;
-      //action = val => dy.Text = val;
+      ////test3 with Better Reflection
+      //var pi = o.GetType().GetProperty(propName);
+      //action = val => pi.SetValue(o, val);
       //sw.Restart();
 
       //for (int i = 0; i < iterations; i++)
@@ -57,11 +57,10 @@ namespace ConsoleApp2
       //Console.WriteLine(sw.ElapsedMilliseconds);
       //Console.WriteLine(d.Text);
 
-
-      ////test4, compiled setter
-      Action<object, string> setter = GetCompiledSetter(o, propName);
-      action = val => setter(o, val);
-      sw.Start();
+      //test4 with dynamic
+      dynamic dy = o;
+      action = val => dy.Text = val;
+      sw.Restart();
 
       for (int i = 0; i < iterations; i++)
       {
@@ -73,31 +72,59 @@ namespace ConsoleApp2
       Console.WriteLine(d.Text);
 
 
-      ////test5
-      //action = GetCompiledLambda<object, string>(o, propName);
-      //sw.Restart();
+      //test5, compiled setter
+      Action<object, string> setter = GetCompiledSetter(o, propName);
+      action = val => setter(o, val);
+      sw.Start();
 
-      //for (int i = 0; i < iterations; i++)
-      //{
-      //  action.Invoke($"value5");
-      //}
+      for (int i = 0; i < iterations; i++)
+      {
+        action.Invoke("value5");
+      }
 
-      //sw.Stop();
-      //Console.WriteLine(sw.ElapsedMilliseconds);
-      //Console.WriteLine(d.Text);
+      sw.Stop();
+      Console.WriteLine(sw.ElapsedMilliseconds);
+      Console.WriteLine(d.Text);
 
-      ////test6 with factory
-      //action = GetCompiledLambdaWithFactory<string>(o, propName);
-      //sw.Restart();
 
-      //for (int i = 0; i < iterations; i++)
-      //{
-      //  action.Invoke($"value6");
-      //}
+      //test6, compile the whole lambda
+      action = GetCompiledLambda<object, string>(o, propName);
+      sw.Restart();
 
-      //sw.Stop();
-      //Console.WriteLine(sw.ElapsedMilliseconds);
-      //Console.WriteLine(d.Text);
+      for (int i = 0; i < iterations; i++)
+      {
+        action.Invoke("value6");
+      }
+
+      sw.Stop();
+      Console.WriteLine(sw.ElapsedMilliseconds);
+      Console.WriteLine(d.Text);
+
+      //test7 with factory
+      action = GetCompiledLambdaWithFactory<string>(o, propName);
+      sw.Restart();
+
+      for (int i = 0; i < iterations; i++)
+      {
+        action.Invoke("value7");
+      }
+
+      sw.Stop();
+      Console.WriteLine(sw.ElapsedMilliseconds);
+      Console.WriteLine(d.Text);
+
+      //test1, hard-coded
+      action = val => d.Text = val;
+      sw.Restart();
+
+      for (int i = 0; i < iterations; i++)
+      {
+        action.Invoke("value1");
+      }
+
+      sw.Stop();
+      Console.WriteLine(sw.ElapsedMilliseconds);
+      Console.WriteLine(d.Text);
 
       //reverse engineering
       //Action<string> exp = val => d.Text = val;
@@ -130,7 +157,7 @@ namespace ConsoleApp2
       var pi = d.GetType().GetProperty(propName);
       ParameterExpression valueExp = Expression.Parameter(typeof(TValue), "val");
 
-      MemberExpression propExp = Expression.Property(Expression.Constant(d), pi); //TODO use Quote? //http://stackoverflow.com/questions/3716492/what-does-expression-quote-do-that-expression-constant-can-t-already-do
+      MemberExpression propExp = Expression.Property(Expression.Constant(d), pi);
       BinaryExpression assignExp = Expression.Assign(propExp, valueExp);
 
       var lamb = Expression.Lambda<Action<TValue>>
@@ -156,9 +183,6 @@ namespace ConsoleApp2
               targetExp);
 
       Console.WriteLine(lamb);
-
-      //var factory = (Func<object, Action<string>>)lamb.Compile(); //can't convert Func<Dummy, Action<string>> to Func<Object, Action<string>>
-      //var inner = factory.Invoke(d);
 
       var factory = lamb.Compile();
       var inner = (Action<TValue>)factory.DynamicInvoke(target);
