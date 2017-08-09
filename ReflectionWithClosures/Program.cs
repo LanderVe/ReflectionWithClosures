@@ -30,32 +30,32 @@ namespace ConsoleApp2
       Console.WriteLine(sw.ElapsedMilliseconds);
       Console.WriteLine(d.Text);
 
-      ////test2 with naïve Reflection
-      //action = val => o.GetType().GetProperty(propName).SetValue(o, val);
-      //sw.Restart();
+      //test2 with naïve Reflection
+      action = val => o.GetType().GetProperty(propName).SetValue(o, val);
+      sw.Restart();
 
-      //for (int i = 0; i < iterations; i++)
-      //{
-      //  action.Invoke("value2");
-      //}
+      for (int i = 0; i < iterations; i++)
+      {
+        action.Invoke("value2");
+      }
 
-      //sw.Stop();
-      //Console.WriteLine(sw.ElapsedMilliseconds);
-      //Console.WriteLine(d.Text);
+      sw.Stop();
+      Console.WriteLine(sw.ElapsedMilliseconds);
+      Console.WriteLine(d.Text);
 
-      ////test3 with Better Reflection
-      //var pi = o.GetType().GetProperty(propName);
-      //action = val => pi.SetValue(o, val);
-      //sw.Restart();
+      //test3 with Better Reflection
+      var pi = o.GetType().GetProperty(propName);
+      action = val => pi.SetValue(o, val);
+      sw.Restart();
 
-      //for (int i = 0; i < iterations; i++)
-      //{
-      //  action.Invoke("value3");
-      //}
+      for (int i = 0; i < iterations; i++)
+      {
+        action.Invoke("value3");
+      }
 
-      //sw.Stop();
-      //Console.WriteLine(sw.ElapsedMilliseconds);
-      //Console.WriteLine(d.Text);
+      sw.Stop();
+      Console.WriteLine(sw.ElapsedMilliseconds);
+      Console.WriteLine(d.Text);
 
       //test4 with dynamic
       dynamic dy = o;
@@ -101,7 +101,7 @@ namespace ConsoleApp2
       Console.WriteLine(d.Text);
 
       //test7 with factory
-      action = GetCompiledLambdaWithFactory<string>(o, propName);
+      action = GetCompiledLambdaWithFactory<object, string>(o, propName);
       sw.Restart();
 
       for (int i = 0; i < iterations; i++)
@@ -167,11 +167,11 @@ namespace ConsoleApp2
       return lamb;
     }
 
-    //(TTarget d) => (TValue val) => target.Text = val 
-    private static Action<TValue> GetCompiledLambdaWithFactory<TValue>(object target, string propName)
+    //(TTarget target) => (TValue val) => target.Prop = val 
+    private static Action<TValue> GetCompiledLambdaWithFactory<TTarget, TValue>(TTarget target, string propName)
     {
-      var targetExp = Expression.Parameter(target.GetType(), "t"); //not using TTarget, want specific type
-      var valueExp = Expression.Parameter(typeof(TValue), "v");
+      var targetExp = Expression.Parameter(target.GetType(), "target"); //not using TTarget, want specific type
+      var valueExp = Expression.Parameter(typeof(TValue), "val");
 
       var pi = target.GetType().GetProperty(propName);
       MemberExpression propExp = Expression.Property(targetExp, pi);
@@ -179,8 +179,8 @@ namespace ConsoleApp2
       var lamb = Expression.Lambda(
                   Expression.Lambda<Action<TValue>>(
                     Expression.Assign(propExp, valueExp),
-                valueExp),
-              targetExp);
+                  valueExp),
+                targetExp);
 
       Console.WriteLine(lamb);
 
